@@ -1,0 +1,87 @@
+#lang racket
+(require srfi/13)
+(define exp "(6 * 1 + 2 * ((4 + 2) / 9 + 3) * 3 ) + ")
+
+(define regulared-exp (list->string
+                       (filter
+                        (λ (c) (not (char=? c #\space)))
+                        (string->list exp))))
+
+(define char-list (string->list regulared-exp))
+
+;
+;S   -> Add
+;Add -> Mul op1 Add | Mul
+;op1 -> + | -
+;Mul -> Atom op2 Mul | Atom
+;op2 -> * | /
+;Atom-> number | (Add)
+      
+(define (parse chars)
+  (begin
+    (define stack '())
+    (define (push data)
+      (set! stack (cons data stack))
+      )
+
+    (define (pop)
+      (let ((result (car stack)))
+        (set! stack (cdr stack))
+        result))
+
+    (define (autosave exp_checker)
+      (begin
+        (push chars)
+        (define success? (exp_checker))
+        (if success?
+            (pop)
+            (set! chars (pop)))
+        success?))
+
+    (define get_char (λ ()
+                       (if (empty? chars) #f
+                           (let ((c (car chars)))
+                             (set! chars (cdr chars))
+                             ;(displayln c)
+                             c))))
+
+    (define add (λ ()
+                  (or (autosave (λ () (and (mul) (op1) (add))))
+                      (autosave mul))))
+  
+    (define op1 (λ ()
+                  (let ((c (get_char)))
+                    (and c (or (char=? c #\+) (char=? c #\-))))))
+
+    (define mul (λ ()
+                  (or (autosave (λ () (and (atom) (op2) (mul))))
+                      (autosave atom))))
+
+    (define op2 (λ ()
+                  (let ((c (get_char)))
+                    (and c (or (char=? c #\*) (char=? c #\/))))))
+
+    (define atom
+      (λ ()
+        (or (autosave (λ ()
+                        (let ((c (get_char)))
+                          (and c
+                               (char>=? c #\0)
+                               (char<=? c #\9)))))
+            (autosave (λ ()
+                        (and (begin
+                               (let ((c (get_char)))
+                                 (and c (char=? c #\())))
+                             (autosave add)
+                             (begin
+                               (let ((c(get_char)))
+                                 (and c (char=? c #\)))))))))))
+    
+    (displayln (list->string chars))
+    (let ((result (add)))
+      (displayln (list->string chars))
+      (and result (empty? chars)))
+    )
+  )
+(parse char-list)
+(parse (string->list (read)))
