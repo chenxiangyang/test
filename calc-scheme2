@@ -1,0 +1,118 @@
+#lang racket
+(require srfi/13)
+(define exp "(6 * 1 + 2 * ((4 + 2) / 9 + 3) * 3 ) + ")
+
+(define regulared-exp (list->string
+                       (filter
+                        (λ (c) (not (char=? c #\space)))
+                        (string->list exp))))
+
+(define char-list (string->list regulared-exp))
+
+;
+;S   -> Add
+;Add -> Mul op1 Add | Mul
+;op1 -> + | -
+;Mul -> Atom op2 Mul | Atom
+;op2 -> * | /
+;Atom-> number | (Add)
+      
+(define (parse chars)
+  (begin
+    (define result_exp '())
+    (define prefix_exp_stack '())
+    (define stack '())
+    (define (push data)
+      (set! stack (cons data stack))
+      )
+
+    (define (push_exp exp)
+      (set! prefix_exp_stack (cons exp prefix_exp_stack))
+      )
+
+    (define (pop_exp)
+      (let ((result (car prefix_exp_stack)))
+        (set! prefix_exp_stack (cdr prefix_exp_stack))
+        result))
+
+    (define (pop)
+      (let ((result (car stack)))
+        (set! stack (cdr stack))
+        result))
+
+    (define (autosave exp_checker)
+      (begin
+        (push chars)
+        (push_exp result_exp)
+        (define success? (exp_checker))
+        (if success?
+            (begin
+              (pop)
+              (pop_exp))
+            (begin
+              (set! chars (pop))
+              (set! result_exp (pop_exp))))        
+        success?))
+
+    (define get_char (λ ()
+                       (if (empty? chars) #f
+                           (let ((c (car chars)))
+                             (set! chars (cdr chars))
+                             ;(displayln c)
+                             c))))
+
+    (define add (λ ()
+                  (or (autosave (λ () (and (mul) (op1) (add))))
+                      (autosave mul))))
+  
+    (define op1 (λ ()
+                  (let ((c (get_char)))
+                    (and c (or (char=? c #\+) (char=? c #\-)) (begin (set! result_exp(cons c result_exp)) #t)))))
+
+    (define mul (λ ()
+                  (or (autosave (λ () (and (atom) (op2) (mul))))
+                      (autosave atom))))
+
+    (define op2 (λ ()
+                  (let ((c (get_char)))
+                    (and c (or (char=? c #\*) (char=? c #\/)) (begin (set! result_exp (cons c result_exp)) #t)))))
+
+    (define atom
+      (λ ()
+        (or (autosave (λ ()
+                        (let ((c (get_char)))
+                          (and c
+                               (char>=? c #\0)
+                               (char<=? c #\9)
+                               (begin
+                                 (set! result_exp (cons c result_exp))
+                                 #t)))))
+            (autosave (λ ()
+                        (and (begin
+                               (let ((c (get_char)))
+                                 (and
+                                  c
+                                  (char=? c #\()
+                                  (begin
+                                    (set! result_exp (cons c result_exp))
+                                    #t
+                                    ))))
+                             (autosave add)
+                             (begin
+                               (let ((c(get_char)))
+                                 (and
+                                  c
+                                  (char=? c #\))
+                                  (begin
+                                    (set! result_exp (cons c result_exp))
+                                    #t))))))))))
+    
+    (displayln (list->string chars))
+    (let ((result (add)))
+      (displayln (list->string chars))
+      (display result_exp)
+      (and result (empty? chars)))
+    )
+  )
+(parse char-list)
+(parse (string->list (read)))
