@@ -1,0 +1,30 @@
+#lang racket
+(define (ff x) (cons x (lambda () (ff (+ x 2)))))
+
+(define (show_number count)
+  (define (itor cur lazy_pair)
+    (if (<= cur count)
+        (begin
+          (displayln (car lazy_pair))
+          (itor (+ cur 1) ((cdr lazy_pair))))
+        (display ""))
+    )
+  (itor 0 (ff 0))
+  )
+
+(show_number 1000)
+
+(define (func . args)
+   (define (itor rest_arg)
+     (begin
+       (if (empty? rest_arg)
+            (display "")
+            (begin
+              (displayln (car rest_arg))
+              (itor (cdr rest_arg))
+              )
+            )
+       )
+     )
+  (itor args)
+  )
